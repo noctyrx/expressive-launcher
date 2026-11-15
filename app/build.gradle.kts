@@ -57,7 +57,7 @@ android {
         buildConfig = true
     }
     androidResources {
-        localeFilters += listOf("en", "ru")
+        localeFilters += listOf("en", "ru", "uk", "pl", "ar")
     }
 }
 
