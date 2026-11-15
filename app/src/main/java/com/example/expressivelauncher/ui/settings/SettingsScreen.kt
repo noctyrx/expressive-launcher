@@ -384,6 +384,9 @@ private fun MainPage(vm: LauncherViewModel, actions: HomeActions, onClose: () ->
                 AppLanguage.SYSTEM to stringResource(R.string.language_system),
                 AppLanguage.RUSSIAN to "Русский",
                 AppLanguage.ENGLISH to "English",
+                AppLanguage.UKRAINIAN to "Українська",
+                AppLanguage.POLISH to "Polski",
+                AppLanguage.ARABIC to "العربية",
             ),
             s.language,
         ) { actions.setLanguage(it) }
