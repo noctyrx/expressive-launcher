@@ -70,7 +70,9 @@ enum class PageTransition { DEPTH, SLIDE, CUBE, FADE }
 enum class LauncherStyle { LIQUID_GLASS, EXPRESSIVE, LITE }
 
 /** Язык интерфейса; [tag] == null — как в системе. */
-enum class AppLanguage(val tag: String?) { SYSTEM(null), RUSSIAN("ru"), ENGLISH("en") }
+enum class AppLanguage(val tag: String?) {
+    SYSTEM(null), RUSSIAN("ru"), ENGLISH("en"), UKRAINIAN("uk"), POLISH("pl"), ARABIC("ar")
+}
 
 
 /** Шрифты интерфейса. Системные семейства берутся с устройства; [CUSTOM] — файл, выбранный пользователем. */
