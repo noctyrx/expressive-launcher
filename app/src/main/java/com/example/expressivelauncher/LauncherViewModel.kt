@@ -26,6 +26,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+/** Наибольшая сторона папки на рабочем столе, в клетках. */
+const val FOLDER_MAX_SPAN = 3
+
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val la = app as LauncherApp
     val repo = la.repo
@@ -156,8 +159,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             val dock = page == HomeItem.DOCK
             val cols = if (dock) s.dockCount else s.columns
             val rows = if (dock) 1 else s.rows
-            val tx = x.coerceIn(0, (cols - item.w).coerceAtLeast(0))
-            val ty = if (dock) 0 else y.coerceIn(0, (rows - item.h).coerceAtLeast(0))
+            // В доке только значки 1×1: большая папка при переносе туда возвращается к обычному размеру
+            val iw = if (dock) 1 else item.w
+            val ih = if (dock) 1 else item.h
+            val tx = x.coerceIn(0, (cols - iw).coerceAtLeast(0))
+            val ty = if (dock) 0 else y.coerceIn(0, (rows - ih).coerceAtLeast(0))
             val occupant = GridLogic.itemAt(list, page, tx, ty, ignoreId = id)
 
             if (merge && occupant != null && item.type == ItemType.APP && (occupant.type == ItemType.APP || occupant.type == ItemType.FOLDER)) {
@@ -174,14 +180,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 return@update GridLogic.compactPages(merged)
             }
             // Соседи расступаются ровно так же, как показывал предпросмотр во время перетаскивания
-            val moved = GridLogic.reflow(list, id, page, tx, ty, item.w, item.h, cols, rows)
+            val moved = GridLogic.reflow(list, id, page, tx, ty, iw, ih, cols, rows)
             val spot = if (moved != null) tx to ty
-            else GridLogic.nearestFree(list, page, tx, ty, item.w, item.h, cols, rows, id) ?: return@update list
+            else GridLogic.nearestFree(list, page, tx, ty, iw, ih, cols, rows, id) ?: return@update list
             // Последний элемент могли унести со страницы: пустая страница не должна оставаться
             GridLogic.compactPages(list.map {
                 val shifted = moved?.get(it.id)
                 when {
-                    it.id == id -> it.copy(page = page, x = spot.first, y = spot.second)
+                    it.id == id -> it.copy(page = page, x = spot.first, y = spot.second, w = iw, h = ih)
                     shifted != null -> it.copy(x = shifted.first, y = shifted.second)
                     else -> it
                 }
@@ -216,7 +222,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 for (g in group) {
                     val spot = GridLogic.nearestFree(working, HomeItem.DOCK, x, 0, 1, 1, cols, 1, null)
                     if (spot != null) {
-                        working = working + g.copy(page = HomeItem.DOCK, x = spot.first, y = 0)
+                        working = working + g.copy(page = HomeItem.DOCK, x = spot.first, y = 0, w = 1, h = 1)
                     } else {
                         val (p, nx, ny) = GridLogic.findFree(working, s.columns, s.rows, g.w, g.h, startPage = 0)
                         working = working + g.copy(page = p, x = nx, y = ny)
@@ -279,7 +285,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             if (target.type != ItemType.APP && target.type != ItemType.FOLDER) return@update list
             val free = GridLogic.nearestFree(list, HomeItem.DOCK, 0, 0, 1, 1, s.dockCount, 1, id)
             if (free == null) { full = true; return@update list }
-            GridLogic.compactPages(list.map { if (it.id == id) it.copy(page = HomeItem.DOCK, x = free.first, y = 0) else it })
+            GridLogic.compactPages(list.map { if (it.id == id) it.copy(page = HomeItem.DOCK, x = free.first, y = 0, w = 1, h = 1) else it })
         }
         if (full) com.example.expressivelauncher.ui.components.LauncherToast.show(getApplication<Application>().getString(R.string.dock_full))
     }
@@ -291,6 +297,20 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             val ch = h.coerceIn(1, s.rows)
             val (p, x, y) = GridLogic.findFree(list, s.columns, s.rows, cw, ch, startPage = page)
             list + HomeItem(newId(), ItemType.WIDGET, p, x, y, cw, ch, widgetId = widgetId)
+        }
+    }
+
+    /** Размер папки на рабочем столе в клетках; не больше [FOLDER_MAX_SPAN] и только если место свободно. */
+    fun resizeFolder(id: String, dw: Int, dh: Int) {
+        val s = settings.value
+        layout.update { list ->
+            val it0 = list.firstOrNull { it.id == id && it.type == ItemType.FOLDER && !it.inDock } ?: return@update list
+            val nw = (it0.w + dw).coerceIn(1, minOf(FOLDER_MAX_SPAN, s.columns))
+            val nh = (it0.h + dh).coerceIn(1, minOf(FOLDER_MAX_SPAN, s.rows))
+            if (nw == it0.w && nh == it0.h) return@update list
+            if (GridLogic.isFree(list, it0.page, it0.x, it0.y, nw, nh, s.columns, s.rows, id))
+                list.map { i -> if (i.id == id) i.copy(w = nw, h = nh) else i }
+            else list
         }
     }
 
