@@ -1140,7 +1140,8 @@ private fun HomeCell(
             }
             ItemType.FOLDER -> FolderCell(
                 item, appMap, homeIconSize(cellW, cellH, settings.iconScale, settings.showHomeLabels),
-                labelWidth = if (settings.showHomeLabels) cellW else null,
+                labelWidth = if (settings.showHomeLabels) cellW * item.w else null,
+                cellW = cellW, cellH = cellH,
             )
             ItemType.WIDGET -> HomeWidget(item, vm.widgets, Modifier.fillMaxSize().padding(4.dp))
             ItemType.CLOCK -> ClockCard(settings.clockStyle, wakeCount)
@@ -1247,22 +1248,33 @@ internal fun FolderCell(
     appMap: Map<String, AppInfo>,
     size: androidx.compose.ui.unit.Dp,
     labelWidth: androidx.compose.ui.unit.Dp? = null,
+    // Размер клетки сетки: если задан, папка занимает item.w × item.h клеток; без него рисуется как 1×1
+    cellW: androidx.compose.ui.unit.Dp? = null,
+    cellH: androidx.compose.ui.unit.Dp? = null,
 ) {
     val s = LocalSettings.current
+    val spanX = if (cellW != null) item.w else 1
+    val spanY = if (cellH != null) item.h else 1
+    val tileW = if (cellW != null) size + cellW * (spanX - 1) else size
+    val tileH = if (cellH != null) size + cellH * (spanY - 1) else size
+    // В каждой клетке помещается 2×2 мини-значка; для 1×1 размеры совпадают с прежними (0,36 и 0,06 от размера значка)
+    val cols = 2 * spanX
+    val rows = 2 * spanY
+    val mini = minOf(tileW * 0.78f / (cols + (cols - 1) / 6f), tileH * 0.78f / (rows + (rows - 1) / 6f))
+    val gap = mini / 6f
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         val glass = com.example.expressivelauncher.ui.theme.LocalThemeSpec.current.glass
         // Liquid Glass: плитка папки — стекло; скруглённый прямоугольник рисуется аналитически, без маски контура
         Box(
-            if (glass) Modifier.size(size) else Modifier.size(size).clip(s.iconShape.toComposeShape()).background(MaterialTheme.colorScheme.secondaryContainer),
+            if (glass) Modifier.size(tileW, tileH) else Modifier.size(tileW, tileH).clip(s.iconShape.toComposeShape()).background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             if (glass) com.example.expressivelauncher.ui.components.LiquidSurface(
                 androidx.compose.foundation.shape.RoundedCornerShape(percent = 26), Modifier.matchParentSize(), shadow = false, blockTouches = false,
             ) { }
-            val mini = size * 0.36f
-            Column(verticalArrangement = Arrangement.spacedBy(size * 0.06f)) {
-                for (row in item.children.take(4).chunked(2)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(size * 0.06f)) {
+            Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                for (row in item.children.take(cols * rows).chunked(cols)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                         for (k in row) {
                             val app = appMap[k]
                             if (app != null) AppIconImage(app, mini, showBadge = false) else Spacer(Modifier.size(mini))

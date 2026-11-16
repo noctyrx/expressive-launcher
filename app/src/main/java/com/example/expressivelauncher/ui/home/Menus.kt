@@ -261,7 +261,15 @@ fun ItemMenu(
                 if (!item.inDock) add(MenuEntry(stringResource(R.string.menu_to_dock), Icons.Rounded.Home) { vm.moveToDock(item.id); onDismiss() })
                 addAll(overrides)
             }
-            ItemType.FOLDER -> add(MenuEntry(stringResource(R.string.menu_open), Icons.AutoMirrored.Rounded.OpenInNew) { onOpenFolder(item.id); onDismiss() })
+            ItemType.FOLDER -> {
+                add(MenuEntry(stringResource(R.string.menu_open), Icons.AutoMirrored.Rounded.OpenInNew) { onOpenFolder(item.id); onDismiss() })
+                if (!item.inDock) {
+                    val w = stringResource(R.string.widget_width)
+                    val h = stringResource(R.string.widget_height)
+                    add(MenuEntry(custom = { ResizeRow(w, { vm.resizeFolder(item.id, -1, 0) }, { vm.resizeFolder(item.id, 1, 0) }) }))
+                    add(MenuEntry(custom = { ResizeRow(h, { vm.resizeFolder(item.id, 0, -1) }, { vm.resizeFolder(item.id, 0, 1) }) }))
+                }
+            }
             ItemType.WIDGET -> {
                 val w = stringResource(R.string.widget_width)
                 val h = stringResource(R.string.widget_height)
@@ -270,7 +278,7 @@ fun ItemMenu(
             }
             ItemType.CLOCK -> Unit
         }
-        if (onSelect != null && (item.type == ItemType.APP || item.type == ItemType.FOLDER)) {
+        if (onSelect != null && (item.type == ItemType.APP || (item.type == ItemType.FOLDER && item.w == 1 && item.h == 1))) {
             add(MenuEntry(stringResource(R.string.menu_select_more), Icons.Rounded.SelectAll) { onDismiss(); onSelect() })
         }
     }
