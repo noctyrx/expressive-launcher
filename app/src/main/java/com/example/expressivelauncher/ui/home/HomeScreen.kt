@@ -1257,10 +1257,17 @@ internal fun FolderCell(
     val spanY = if (cellH != null) item.h else 1
     val tileW = if (cellW != null) size + cellW * (spanX - 1) else size
     val tileH = if (cellH != null) size + cellH * (spanY - 1) else size
-    // В каждой клетке помещается 2×2 мини-значка; для 1×1 размеры совпадают с прежними (0,36 и 0,06 от размера значка)
-    val cols = 2 * spanX
-    val rows = 2 * spanY
-    val mini = minOf(tileW * 0.78f / (cols + (cols - 1) / 6f), tileH * 0.78f / (rows + (rows - 1) / 6f))
+    // Папка 1×1 — как раньше: 2×2 мини-значка. Большая папка показывает меньше значков, но крупнее:
+    // по оси в 2 клетки — 3 значка, в 3 клетки — 4; по оси в 1 клетку рядом с большой стороной — один ряд
+    fun count(span: Int, other: Int) = when {
+        span == 1 && other == 1 -> 2
+        span == 1 -> 1
+        else -> span + 1
+    }
+    val cols = count(spanX, spanY)
+    val rows = count(spanY, spanX)
+    val fill = if (spanX == 1 && spanY == 1) 0.78f else 0.84f
+    val mini = minOf(tileW * fill / (cols + (cols - 1) / 6f), tileH * fill / (rows + (rows - 1) / 6f))
     val gap = mini / 6f
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         val glass = com.example.expressivelauncher.ui.theme.LocalThemeSpec.current.glass
